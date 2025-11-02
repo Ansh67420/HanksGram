@@ -222,26 +222,53 @@ function updateParticipants() {
   });
 }
 
-// Modal logic
-modalJoin.addEventListener('click', async () => {
-  const n = modalName.value.trim();
-  const r = modalRegion.value.trim() || 'Unknown';
-  if (!n) return alert('Enter a name');
-  const usersRef = ref(db, 'users');
-  const snap = await get(usersRef);
-  const data = snap.val() || {};
-  const taken = Object.values(data).some(u => u.name === n);
-  if (taken) return alert('This username is already taken.');
-  displayName = n;
-  region = r;
-  localStorage.setItem('userData', JSON.stringify({ name: n, region: r, lastChanged: Date.now() }));
-  modalWrap.style.display = 'none';
-  nameInput.value = n;
-  regionInput.value = r;
-  registerUser();
-});
+  // Modal and name/region logic with 30-day cooldown and persistent storage
+  function setName(n, r) {
+    n = n.trim() || 'Anonymous';
+    r = r.trim() || 'Unknown';
+    displayName = n;
+    region = r;
+    nameInput.value = displayName;
+    regionInput.value = region;
+
+    const now = Date.now();
+    localStorage.setItem('displayName', displayName);
+    localStorage.setItem('region', region);
+    localStorage.setItem('lastNameChange', now);
+
+    modalWrap.style.display = 'none';
+  }
+
+  modalJoin.addEventListener('click', () => {
+    const lastChange = parseInt(localStorage.getItem('lastNameChange') || '0');
+    const thirtyDays = 720 * 60 * 60 * 1000; // 720 hours = 30 days
+    const now = Date.now();
+
+    if (now - lastChange < thirtyDays) {
+      alert('You can only change your name once every 30 days.');
+      modalWrap.style.display = 'none';
+      return;
+    }
+
+    if (!modalName.value.trim()) return alert('Enter a name');
+    setName(modalName.value, modalRegion.value);
+  });
+
+  // Load saved name if exists
+  const savedName = localStorage.getItem('displayName');
+  const savedRegion = localStorage.getItem('region');
+  if (savedName && savedRegion) {
+    displayName = savedName;
+    region = savedRegion;
+    modalWrap.style.display = 'none';
+  } else {
+    modalWrap.style.display = 'flex';
+    modalName.focus();
+  }
 </script>
 </body>
 </html>
+
+
 
 
