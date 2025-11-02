@@ -180,19 +180,42 @@ body{display:flex;align-items:stretch;justify-content:center}
 
   // Modal and name/region logic
   function setName(n,r){
-    n=n.trim()||'Anonymous'; r=r.trim()||'Unknown';
-    displayName=n; region=r;
-    nameInput.value = displayName; regionInput.value = region;
+    n = n.trim() || 'Anonymous';
+    r = r.trim() || 'Unknown';
+    displayName = n;
+    region = r;
+    nameInput.value = displayName;
+    regionInput.value = region;
     modalWrap.style.display='none';
-  }
+    // Enable input box even if name is empty
+    messageInput.disabled = false;
+}
 
-  modalJoin.addEventListener('click',()=>{ 
-    if(!modalName.value.trim()) return alert('Enter a name');
-    setName(modalName.value, modalRegion.value);
-  });
+modalJoin.addEventListener('click', async () => {
+    const chosenName = modalName.value.trim();
+    const chosenRegion = modalRegion.value.trim() || 'Unknown';
+    if (!chosenName) return alert('Enter a name');
+
+    const usersRef = ref(db, 'users');
+    let snapshot = await onValue(usersRef, () => {}, { onlyOnce: true });
+    let data = snapshot.val() || {};
+    let names = Object.values(data).map(u => u.name);
+
+    if (names.includes(chosenName)) {
+        return alert('This username is already taken. Choose another one.');
+    }
+
+    // Add user to Firebase
+    const userRef = ref(db, 'users/' + userId);
+    set(userRef, { name: chosenName, region: chosenRegion });
+
+    setName(chosenName, chosenRegion);
+});
+
 
   modalWrap.style.display='flex';
   modalName.focus();
 </script>
 </body>
 </html>
+
