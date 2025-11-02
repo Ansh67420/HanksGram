@@ -41,30 +41,31 @@ body{display:flex;align-items:stretch;justify-content:center}
 </head>
 <body>
 <div class="app" role="application">
-  <aside class="sidebar" aria-label="Left sidebar">
+  <aside class="sidebar">
     <div class="brand">
       <div class="logo">WA</div>
       <div>
         <div class="title">Mini WhatsApp</div>
-        <div class="small">Local chat demo (tabs/browsers same origin)</div>
+        <div class="small">Local chat demo</div>
       </div>
     </div>
     <div class="nameBox">
       <label class="small">Your display name</label>
-      <input id="nameInput" class="nameInput" placeholder="Enter name">
+      <input id="nameInput" class="nameInput" placeholder="Enter name" disabled>
       <label class="small">Your region</label>
-      <input id="regionInput" class="regionInput" placeholder="Enter region">
+      <input id="regionInput" class="regionInput" placeholder="Enter region" disabled>
     </div>
     <div style="margin-top:14px;font-weight:700">Participants</div>
-    <div id="users" class="users" aria-live="polite"></div>
-    <div class="footerSmall">Tip: open this file in multiple tabs or other windows (same browser) and enter different names to chat.</div>
+    <div id="users" class="users"></div>
+    <div class="footerSmall">Open in multiple tabs/devices to chat.</div>
   </aside>
-  <main class="chatArea" aria-label="Chat area">
+
+  <main class="chatArea">
     <div class="chatHeader">
       <div style="font-weight:700">Chat room</div>
-      <div id="typing" class="typing" aria-live="polite"></div>
+      <div id="typing" class="typing"></div>
     </div>
-    <div id="chatWindow" class="chatWindow" tabindex="0" aria-live="polite"></div>
+    <div id="chatWindow" class="chatWindow"></div>
     <div class="composer">
       <input id="messageInput" placeholder="Type a message" autocomplete="off">
       <button id="sendBtn" class="btn">Send</button>
@@ -75,7 +76,7 @@ body{display:flex;align-items:stretch;justify-content:center}
 <div id="modalWrap" class="overlay">
   <div class="modal">
     <h2>Choose your display name and region</h2>
-    <p>Enter a name and region to join the chat.</p>
+    <p>Enter a name and region to join the chat (you can change it only every 30 days).</p>
     <input id="modalName" placeholder="Your name" style="width:100%;padding:10px;margin-top:8px;border:1px solid #ddd;border-radius:8px">
     <input id="modalRegion" placeholder="Your region" style="width:100%;padding:10px;margin-top:8px;border:1px solid #ddd;border-radius:8px">
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
@@ -85,137 +86,162 @@ body{display:flex;align-items:stretch;justify-content:center}
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, set, onValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDfrYQYFBaH5CDECKFDz0dbJdWVGbnPL1I",
-    authDomain: "index-641be.firebaseapp.com",
-    databaseURL: "https://index-641be-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "index-641be",
-    storageBucket: "index-641be.firebasestorage.app",
-    messagingSenderId: "622589202823",
-    appId: "1:622589202823:web:950bf9af41721e38f60322",
-    measurementId: "G-K61Z4MS2S2"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyDfrYQYFBaH5CDECKFDz0dbJdWVGbnPL1I",
+  authDomain: "index-641be.firebaseapp.com",
+  databaseURL: "https://index-641be-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "index-641be",
+  storageBucket: "index-641be.firebasestorage.app",
+  messagingSenderId: "622589202823",
+  appId: "1:622589202823:web:950bf9af41721e38f60322"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  const nameInput=document.getElementById('nameInput');
-  const regionInput=document.getElementById('regionInput');
-  const usersDiv=document.getElementById('users');
-  const chatWindow=document.getElementById('chatWindow');
-  const messageInput=document.getElementById('messageInput');
-  const sendBtn=document.getElementById('sendBtn');
-  const typingDiv=document.getElementById('typing');
-  const modalWrap=document.getElementById('modalWrap');
-  const modalName=document.getElementById('modalName');
-  const modalRegion=document.getElementById('modalRegion');
-  const modalJoin=document.getElementById('modalJoin');
+const nameInput = document.getElementById('nameInput');
+const regionInput = document.getElementById('regionInput');
+const usersDiv = document.getElementById('users');
+const chatWindow = document.getElementById('chatWindow');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingDiv = document.getElementById('typing');
+const modalWrap = document.getElementById('modalWrap');
+const modalName = document.getElementById('modalName');
+const modalRegion = document.getElementById('modalRegion');
+const modalJoin = document.getElementById('modalJoin');
 
-  let displayName='', region='', userId=Date.now()+'-'+Math.random().toString(36).slice(2);
-  let typingTimeout;
+let displayName = '', region = '', userId = Date.now() + '-' + Math.random().toString(36).slice(2);
+let typingTimeout;
 
-  // Send message to Firebase
-  function sendMessage(text) {
-    if(!text) return;
-    const msgRef = ref(db, 'messages');
-    const payload = {
-      userId,
-      name: displayName,
-      region,
-      text,
-      time: Date.now()
-    };
-    push(msgRef, payload);
-    messageInput.value='';
-    sendTyping(false);
-  }
-
-  // Listen for new messages
-  const messagesRef = ref(db, 'messages');
-  onChildAdded(messagesRef, (snapshot)=>{
-    const m = snapshot.val();
-    renderMessage(m, m.userId === userId);
-  });
-
-  // Typing indicator
-  function sendTyping(isTyping){
-    const typingRef = ref(db, 'typing/'+userId);
-    set(typingRef, isTyping ? {name: displayName, typing:true} : {name: displayName, typing:false});
-  }
-
-  const typingRefAll = ref(db, 'typing');
-  onValue(typingRefAll, (snapshot)=>{
-    const data = snapshot.val()||{};
-    const names = Object.values(data)
-      .filter(u=>u.typing && u.name!==displayName)
-      .map(u=>u.name);
-    typingDiv.textContent = names.length ? names.slice(0,3).join(', ')+' typing...' : '';
-  });
-
-  // Render message
-  function renderMessage(m, me){
-    if(document.getElementById('msg-'+m.time)) return;
-    const wrap=document.createElement('div');
-    wrap.id='msg-'+m.time;
-    wrap.className='msg '+(me?'me':'other');
-    wrap.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${escapeHtml(m.name)}</div>
-      <div>${escapeHtml(m.text)}</div>
-      <div class="meta">${new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:true})}</div>`;
-    chatWindow.appendChild(wrap);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-  }
-
-  function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-
-  sendBtn.addEventListener('click', ()=>sendMessage(messageInput.value));
-  messageInput.addEventListener('keydown', e=>{
-    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(messageInput.value);}
-    sendTyping(true);
-    clearTimeout(typingTimeout);
-    typingTimeout=setTimeout(()=>sendTyping(false),1200);
-  });
-
-  // Modal and name/region logic
-  function setName(n,r){
-    n = n.trim() || 'Anonymous';
-    r = r.trim() || 'Unknown';
-    displayName = n;
-    region = r;
-    nameInput.value = displayName;
-    regionInput.value = region;
-    modalWrap.style.display='none';
-    // Enable input box even if name is empty
-    messageInput.disabled = false;
+// Save and check name
+const saved = JSON.parse(localStorage.getItem('userData') || '{}');
+if (saved.name && saved.region && Date.now() - saved.lastChanged < 720 * 60 * 60 * 1000) {
+  displayName = saved.name;
+  region = saved.region;
+  modalWrap.style.display = 'none';
+  nameInput.value = displayName;
+  regionInput.value = region;
+  registerUser();
+} else {
+  modalWrap.style.display = 'flex';
 }
 
-modalJoin.addEventListener('click', async () => {
-    const chosenName = modalName.value.trim();
-    const chosenRegion = modalRegion.value.trim() || 'Unknown';
-    if (!chosenName) return alert('Enter a name');
+// Firebase
+function sendMessage(text) {
+  if (!text) return;
+  const msgRef = ref(db, 'messages');
+  const payload = { userId, name: displayName, region, text, time: Date.now() };
+  push(msgRef, payload);
+  messageInput.value = '';
+  sendTyping(false);
+}
 
-    const usersRef = ref(db, 'users');
-    let snapshot = await onValue(usersRef, () => {}, { onlyOnce: true });
-    let data = snapshot.val() || {};
-    let names = Object.values(data).map(u => u.name);
-
-    if (names.includes(chosenName)) {
-        return alert('This username is already taken. Choose another one.');
-    }
-
-    // Add user to Firebase
-    const userRef = ref(db, 'users/' + userId);
-    set(userRef, { name: chosenName, region: chosenRegion });
-
-    setName(chosenName, chosenRegion);
+const messagesRef = ref(db, 'messages');
+onChildAdded(messagesRef, (snapshot) => {
+  const m = snapshot.val();
+  renderMessage(m, m.userId === userId);
 });
 
+function sendTyping(isTyping) {
+  const typingRef = ref(db, 'typing/' + userId);
+  set(typingRef, isTyping ? { name: displayName, typing: true } : { name: displayName, typing: false });
+}
 
-  modalWrap.style.display='flex';
-  modalName.focus();
+const typingRefAll = ref(db, 'typing');
+onValue(typingRefAll, (snapshot) => {
+  const data = snapshot.val() || {};
+  const names = Object.values(data).filter(u => u.typing && u.name !== displayName).map(u => u.name);
+  typingDiv.textContent = names.length ? names.join(', ') + ' typing...' : '';
+});
+
+function renderMessage(m, me) {
+  if (document.getElementById('msg-' + m.time)) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'msg-' + m.time;
+  wrap.className = 'msg ' + (me ? 'me' : 'other');
+  wrap.innerHTML = `<div style="font-weight:700;margin-bottom:6px">${escapeHtml(m.name)}</div>
+  <div>${escapeHtml(m.text)}</div>
+  <div class="meta">${new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:true})}</div>`;
+  chatWindow.appendChild(wrap);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+function escapeHtml(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+sendBtn.addEventListener('click', () => sendMessage(messageInput.value));
+messageInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(messageInput.value); }
+  sendTyping(true);
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => sendTyping(false), 1200);
+});
+
+// Register user
+async function registerUser() {
+  const userRef = ref(db, 'users/' + userId);
+  await set(userRef, { name: displayName, region, online: true });
+  setupPresence();
+  updateParticipants();
+}
+
+// Presence
+function setupPresence() {
+  const userRef = ref(db, 'users/' + userId + '/online');
+  set(userRef, true);
+  window.addEventListener('beforeunload', () => set(userRef, false));
+  let idleTimeout;
+  function resetIdle() {
+    clearTimeout(idleTimeout);
+    set(userRef, true);
+    idleTimeout = setTimeout(() => set(userRef, false), 60000);
+  }
+  document.addEventListener('mousemove', resetIdle);
+  document.addEventListener('keydown', resetIdle);
+  resetIdle();
+}
+
+// Participants
+function updateParticipants() {
+  const usersRef = ref(db, 'users');
+  onValue(usersRef, snapshot => {
+    const data = snapshot.val() || {};
+    usersDiv.innerHTML = '';
+    Object.values(data).forEach(u => {
+      const div = document.createElement('div');
+      div.className = 'userItem';
+      div.textContent = u.name;
+      const dot = document.createElement('div');
+      dot.className = 'statusDot';
+      dot.style.backgroundColor = u.online ? 'green' : 'grey';
+      div.appendChild(dot);
+      usersDiv.appendChild(div);
+    });
+  });
+}
+
+// Modal logic
+modalJoin.addEventListener('click', async () => {
+  const n = modalName.value.trim();
+  const r = modalRegion.value.trim() || 'Unknown';
+  if (!n) return alert('Enter a name');
+  const usersRef = ref(db, 'users');
+  const snap = await get(usersRef);
+  const data = snap.val() || {};
+  const taken = Object.values(data).some(u => u.name === n);
+  if (taken) return alert('This username is already taken.');
+  displayName = n;
+  region = r;
+  localStorage.setItem('userData', JSON.stringify({ name: n, region: r, lastChanged: Date.now() }));
+  modalWrap.style.display = 'none';
+  nameInput.value = n;
+  regionInput.value = r;
+  registerUser();
+});
 </script>
 </body>
 </html>
+
 
