@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mini WhatsApp — Fullscreen Chat</title>
+<title>Mini WhatsApp — HanksGram</title>
 <style>
 :root{--accent:#25D366;--bg:#e9edef;--me:#dcf8c6;--other:#fff}
 *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -15,20 +15,19 @@ body{display:flex;align-items:stretch;justify-content:center}
 .logo{width:46px;height:46px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;color:#063}
 .title{font-size:18px;font-weight:700}
 .nameBox{margin-top:8px}
-.nameInput,.regionInput{width:100%;padding:8px;border-radius:8px;border:none;margin-top:4px}
+.nameInput,.regionInput{width:100%;padding:8px;border-radius:8px;border:none;margin-top:4px;background:#fff;color:#000}
 .users{margin-top:18px;overflow:auto;flex:1}
-.userItem{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.userItem{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.08);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
 .statusDot{width:10px;height:10px;border-radius:50%}
 .footerSmall{margin-top:auto;font-size:12px;opacity:0.9}
-.chatArea{display:flex;flex-direction:column;background:linear-gradient(#f0f0f0,#f7f7f7);padding:16px;height:100%}
-.chatHeader{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid #e0e0e0}
-.timestamp{font-size:12px;text-align:center;margin-bottom:8px;color:#666}
-.chatWindow{flex:1;overflow:auto;padding:18px 12px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
+.chatArea{display:flex;flex-direction:column;background:linear-gradient(#f0f0f0,#f7f7f7);height:100%;min-height:0}
+.chatHeader{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid #e0e0e0;flex-shrink:0}
+.chatWindow{flex:1;overflow:auto;padding:18px 12px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;min-height:0}
 .msg{max-width:70%;padding:10px 12px;border-radius:16px;word-wrap:break-word;position:relative}
 .msg.me{margin-left:auto;background:var(--me);border-bottom-right-radius:2px}
 .msg.other{margin-right:auto;background:var(--other);border-bottom-left-radius:2px}
 .msg .meta{font-size:11px;margin-top:4px;opacity:0.65;text-align:right}
-.composer{display:flex;gap:8px;padding:10px;border-top:1px solid #e8e8e8}
+.composer{display:flex;gap:8px;padding:10px;border-top:1px solid #e8e8e8;background:#fff;flex-shrink:0}
 .composer input{flex:1;padding:12px;border-radius:20px;border:1px solid #ddd}
 .btn{padding:10px 14px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
 .small{font-size:12px}
@@ -36,24 +35,27 @@ body{display:flex;align-items:stretch;justify-content:center}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:10}
 .modal{background:#fff;padding:20px;border-radius:10px;width:360px;max-width:92%}
 .modal h2{margin:0 0 12px 0}
-@media (max-width:700px){.app{grid-template-columns:1fr;height:100%}.sidebar{display:none}}
+@media (max-width:700px){
+  .app{grid-template-columns:1fr;height:100%}
+  .sidebar{display:none}
+}
 </style>
 </head>
 <body>
 <div class="app" role="application">
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo">WA</div>
+      <div class="logo">HG</div>
       <div>
-        <div class="title">Mini WhatsApp</div>
-        <div class="small">Local chat demo</div>
+        <div class="title">HanksGram</div>
+        <div class="small">Realtime Chat</div>
       </div>
     </div>
     <div class="nameBox">
       <label class="small">Your display name</label>
-      <input id="nameInput" class="nameInput" placeholder="Enter name" disabled>
+      <input id="nameInput" class="nameInput" disabled>
       <label class="small">Your region</label>
-      <input id="regionInput" class="regionInput" placeholder="Enter region" disabled>
+      <input id="regionInput" class="regionInput" disabled>
     </div>
     <div style="margin-top:14px;font-weight:700">Participants</div>
     <div id="users" class="users"></div>
@@ -76,7 +78,7 @@ body{display:flex;align-items:stretch;justify-content:center}
 <div id="modalWrap" class="overlay">
   <div class="modal">
     <h2>Choose your display name and region</h2>
-    <p>Enter a name and region to join the chat (you can change it only every 30 days).</p>
+    <p>Enter a name and region to join (change allowed once every 30 days).</p>
     <input id="modalName" placeholder="Your name" style="width:100%;padding:10px;margin-top:8px;border:1px solid #ddd;border-radius:8px">
     <input id="modalRegion" placeholder="Your region" style="width:100%;padding:10px;margin-top:8px;border:1px solid #ddd;border-radius:8px">
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
@@ -87,7 +89,7 @@ body{display:flex;align-items:stretch;justify-content:center}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, set, onValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDfrYQYFBaH5CDECKFDz0dbJdWVGbnPL1I",
@@ -117,11 +119,15 @@ const modalJoin = document.getElementById('modalJoin');
 let displayName = '', region = '', userId = Date.now() + '-' + Math.random().toString(36).slice(2);
 let typingTimeout;
 
-// Save and check name
-const saved = JSON.parse(localStorage.getItem('userData') || '{}');
-if (saved.name && saved.region && Date.now() - saved.lastChanged < 720 * 60 * 60 * 1000) {
-  displayName = saved.name;
-  region = saved.region;
+// Load saved user
+const savedName = localStorage.getItem('displayName');
+const savedRegion = localStorage.getItem('region');
+const lastChange = parseInt(localStorage.getItem('lastNameChange') || '0');
+const thirtyDays = 720 * 60 * 60 * 1000;
+
+if (savedName && savedRegion && Date.now() - lastChange < thirtyDays) {
+  displayName = savedName;
+  region = savedRegion;
   modalWrap.style.display = 'none';
   nameInput.value = displayName;
   regionInput.value = region;
@@ -130,32 +136,43 @@ if (saved.name && saved.region && Date.now() - saved.lastChanged < 720 * 60 * 60
   modalWrap.style.display = 'flex';
 }
 
-// Firebase
+modalJoin.addEventListener('click', async () => {
+  const nameVal = modalName.value.trim();
+  const regionVal = modalRegion.value.trim();
+  if (!nameVal) return alert('Enter a name');
+  
+  // Check duplicate name
+  const snapshot = await new Promise(resolve => onValue(ref(db, 'users'), resolve, { onlyOnce: true }));
+  const data = snapshot.val() || {};
+  const duplicate = Object.values(data).some(u => u.name.toLowerCase() === nameVal.toLowerCase());
+  if (duplicate) return alert('That name is already taken. Choose another.');
+
+  const now = Date.now();
+  localStorage.setItem('displayName', nameVal);
+  localStorage.setItem('region', regionVal);
+  localStorage.setItem('lastNameChange', now);
+
+  displayName = nameVal;
+  region = regionVal;
+  nameInput.value = displayName;
+  regionInput.value = region;
+  modalWrap.style.display = 'none';
+  registerUser();
+});
+
+// Firebase chat
 function sendMessage(text) {
-  if (!text) return;
-  const msgRef = ref(db, 'messages');
-  const payload = { userId, name: displayName, region, text, time: Date.now() };
-  push(msgRef, payload);
+  if (!text.trim()) return;
+  push(ref(db, 'messages'), {
+    userId, name: displayName, region, text: text.trim(), time: Date.now()
+  });
   messageInput.value = '';
   sendTyping(false);
 }
 
-const messagesRef = ref(db, 'messages');
-onChildAdded(messagesRef, (snapshot) => {
-  const m = snapshot.val();
+onChildAdded(ref(db, 'messages'), (snap) => {
+  const m = snap.val();
   renderMessage(m, m.userId === userId);
-});
-
-function sendTyping(isTyping) {
-  const typingRef = ref(db, 'typing/' + userId);
-  set(typingRef, isTyping ? { name: displayName, typing: true } : { name: displayName, typing: false });
-}
-
-const typingRefAll = ref(db, 'typing');
-onValue(typingRefAll, (snapshot) => {
-  const data = snapshot.val() || {};
-  const names = Object.values(data).filter(u => u.typing && u.name !== displayName).map(u => u.name);
-  typingDiv.textContent = names.length ? names.join(', ') + ' typing...' : '';
 });
 
 function renderMessage(m, me) {
@@ -169,106 +186,56 @@ function renderMessage(m, me) {
   chatWindow.appendChild(wrap);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
-function escapeHtml(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}
 
-sendBtn.addEventListener('click', () => sendMessage(messageInput.value));
-messageInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(messageInput.value); }
-  sendTyping(true);
-  clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(() => sendTyping(false), 1200);
+// Typing
+function sendTyping(isTyping){
+  set(ref(db,'typing/'+userId), isTyping?{name:displayName,typing:true}:{name:displayName,typing:false});
+}
+onValue(ref(db,'typing'), snap=>{
+  const data=snap.val()||{};
+  const names=Object.values(data).filter(u=>u.typing&&u.name!==displayName).map(u=>u.name);
+  typingDiv.textContent=names.length?names.join(', ')+' typing...':'';
 });
+messageInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage(messageInput.value);}
+  sendTyping(true);clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>sendTyping(false),1200);
+});
+sendBtn.addEventListener('click',()=>sendMessage(messageInput.value));
 
-// Register user
-async function registerUser() {
-  const userRef = ref(db, 'users/' + userId);
-  await set(userRef, { name: displayName, region, online: true });
+// Register + presence
+async function registerUser(){
+  const userRef=ref(db,'users/'+userId);
+  await set(userRef,{name:displayName,region,online:true});
   setupPresence();
   updateParticipants();
 }
-
-// Presence
-function setupPresence() {
-  const userRef = ref(db, 'users/' + userId + '/online');
-  set(userRef, true);
-  window.addEventListener('beforeunload', () => set(userRef, false));
+function setupPresence(){
+  const onlineRef=ref(db,'users/'+userId+'/online');
+  set(onlineRef,true);
+  window.addEventListener('beforeunload',()=>set(onlineRef,false));
   let idleTimeout;
-  function resetIdle() {
-    clearTimeout(idleTimeout);
-    set(userRef, true);
-    idleTimeout = setTimeout(() => set(userRef, false), 60000);
-  }
-  document.addEventListener('mousemove', resetIdle);
-  document.addEventListener('keydown', resetIdle);
+  function resetIdle(){clearTimeout(idleTimeout);set(onlineRef,true);idleTimeout=setTimeout(()=>set(onlineRef,false),60000);}
+  document.addEventListener('mousemove',resetIdle);
+  document.addEventListener('keydown',resetIdle);
   resetIdle();
 }
-
-// Participants
-function updateParticipants() {
-  const usersRef = ref(db, 'users');
-  onValue(usersRef, snapshot => {
-    const data = snapshot.val() || {};
-    usersDiv.innerHTML = '';
-    Object.values(data).forEach(u => {
-      const div = document.createElement('div');
-      div.className = 'userItem';
-      div.textContent = u.name;
-      const dot = document.createElement('div');
-      dot.className = 'statusDot';
-      dot.style.backgroundColor = u.online ? 'green' : 'grey';
+function updateParticipants(){
+  onValue(ref(db,'users'),snap=>{
+    const data=snap.val()||{};
+    usersDiv.innerHTML='';
+    Object.values(data).forEach(u=>{
+      const div=document.createElement('div');
+      div.className='userItem';
+      div.innerHTML=`<span>${escapeHtml(u.name)}</span>`;
+      const dot=document.createElement('div');
+      dot.className='statusDot';
+      dot.style.background=u.online?'limegreen':'grey';
       div.appendChild(dot);
       usersDiv.appendChild(div);
     });
   });
 }
-
-  // Modal and name/region logic with 30-day cooldown and persistent storage
-  function setName(n, r) {
-    n = n.trim() || 'Anonymous';
-    r = r.trim() || 'Unknown';
-    displayName = n;
-    region = r;
-    nameInput.value = displayName;
-    regionInput.value = region;
-
-    const now = Date.now();
-    localStorage.setItem('displayName', displayName);
-    localStorage.setItem('region', region);
-    localStorage.setItem('lastNameChange', now);
-
-    modalWrap.style.display = 'none';
-  }
-
-  modalJoin.addEventListener('click', () => {
-    const lastChange = parseInt(localStorage.getItem('lastNameChange') || '0');
-    const thirtyDays = 720 * 60 * 60 * 1000; // 720 hours = 30 days
-    const now = Date.now();
-
-    if (now - lastChange < thirtyDays) {
-      alert('You can only change your name once every 30 days.');
-      modalWrap.style.display = 'none';
-      return;
-    }
-
-    if (!modalName.value.trim()) return alert('Enter a name');
-    setName(modalName.value, modalRegion.value);
-  });
-
-  // Load saved name if exists
-  const savedName = localStorage.getItem('displayName');
-  const savedRegion = localStorage.getItem('region');
-  if (savedName && savedRegion) {
-    displayName = savedName;
-    region = savedRegion;
-    modalWrap.style.display = 'none';
-  } else {
-    modalWrap.style.display = 'flex';
-    modalName.focus();
-  }
 </script>
 </body>
 </html>
-
-
-
-
